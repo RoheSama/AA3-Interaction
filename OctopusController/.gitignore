@@ -1,6 +1,0 @@
-/obj
-/.vs
-# bin folder included because otherwise .sln gets lost with dependencies
-# /RobotController/bin/*
-/RobotController/obj
-/RobotController/RobotController/obj/*
