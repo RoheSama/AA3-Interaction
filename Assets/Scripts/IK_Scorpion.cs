@@ -130,7 +130,7 @@ public class IK_Scorpion : MonoBehaviour
 
     private void SetTailHitOrientation()
     {
-        _myController.SetOrientationDirections(_ballHitToCenterDir);
+        _myController.SetOrientationDirections(ballHitToCenterDir);
 
     }
 
@@ -163,7 +163,7 @@ public class IK_Scorpion : MonoBehaviour
 
         if (animTime < animDuration)
         {
-            MoveBody();
+            MoveScorpion();
             ComputeTailTargetPosition();
             UpdateLegsAndBody();
             RotateBody();
@@ -185,7 +185,7 @@ public class IK_Scorpion : MonoBehaviour
         _myController.UpdateIK();
     }
 
-    private string TailWeightChange()
+    private IEnumerator TailWeightChange()
     {
         yield return new WaitForSeconds(0.5f);
         _myController.SetDistanceAndOrientationWeight(5.0f, 0.0f);
@@ -315,7 +315,22 @@ public class IK_Scorpion : MonoBehaviour
     }
 
 
+    private void ComputeTailTargetPosition()
+    {
+        float goalTargetPositionX = movingBall.GetBlueTargetPosition().x;
+        float ballPositionX = movingBall.Position.x;
 
+        _targetRightSide = ballPositionX < goalTargetPositionX;
+        Vector3 right = movingBall.Right * (_targetRightSide ? -1 : 1);
+
+        float effectStrengthPer1 = ui.GetEffectStrengthPer1();
+
+        Vector3 offsetDirection = Vector3.Lerp(movingBall.Forward, right, effectStrengthPer1).normalized;
+
+        ballHitToCenterDir = -offsetDirection;
+
+        SetTailTargetPosition(offsetDirection);
+    }
     //Function to send the tail target transform to the dll
     public void NotifyTailTarget()
     {
