@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using OctopusController;
 using System;
+using UnityEditor.Presets;
 
 public class IK_Scorpion : MonoBehaviour
 {
@@ -121,7 +122,21 @@ public class IK_Scorpion : MonoBehaviour
 
     private void ResetTail()
     {
-        throw new NotImplementedException();
+        for (int i = 0; i < tailBonesT.Length; ++i)
+        {
+            tailBonesT[i].rotation = tailRotations[i];
+        }
+    }
+
+    private void SetTailHitOrientation()
+    {
+        _myController.SetOrientationDirections(_ballHitToCenterDir);
+
+    }
+
+    private void ResetTailWeights()
+    {
+        _myController.SetDistanceAndOrientationWeight(0.0f, 1.0f);
     }
 
     // Update is called once per frame
@@ -134,6 +149,11 @@ public class IK_Scorpion : MonoBehaviour
 
         UpdateInputs();
 
+        if (!movingBall.BallWasShot)
+        {
+            UpdateBallTrajectory();
+        }
+
         if (Input.GetKeyDown(KeyCode.Space))
         {
             NotifyStartWalk();
@@ -143,20 +163,82 @@ public class IK_Scorpion : MonoBehaviour
 
         if (animTime < animDuration)
         {
-            Body.position = Vector3.Lerp(StartPos.position, EndPos.position, animTime / animDuration);
+            MoveBody();
+            ComputeTailTargetPosition();
+            UpdateLegsAndBody();
+            RotateBody();
+            
         }
         else if (animTime >= animDuration && animPlaying)
         {
-            Body.position = EndPos.position;
+            SetTailHitOrientation();
+            _myController.NotifyStartUpdateTail();
+            Body.position = EndPos.position + moveOffset;
             animPlaying = false;
+            goalAchieved = true;
+            movingBall.StopTargetMovement();
+            ResetTailWeights();
+
+            StartCoroutine(TailWeightChange());
         }
 
         _myController.UpdateIK();
     }
 
+    private string TailWeightChange()
+    {
+        yield return new WaitForSeconds(0.5f);
+        _myController.SetDistanceAndOrientationWeight(5.0f, 0.0f);
+    }
+
+    private void UpdateBallTrajectory()
+    {
+        movingBall.SetShootStrength(ui.GetStrengthPer1());
+        movingBall.ComputeStartVelocity();
+    }
+
     private void UpdateInputs()
     {
-        throw new NotImplementedException();
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            ui.ResetStrengthSlider();
+            animTime = 0;
+            animPlaying = false;
+            reset = true;
+        }
+        if (Input.GetKey(KeyCode.Space))
+        {
+            ui.UpdateStrengthSlider();
+        }
+        else if (Input.GetKeyUp(KeyCode.Space))
+        {
+            StartShootBall();
+            SetTailLearningRate();
+        }
+
+        if (!goalAchieved)
+        {
+            if (Input.GetKey(KeyCode.Z))
+            {
+                ui.UpdateEffectStrengthSlider(-1);
+            }
+            else if (Input.GetKey(KeyCode.X))
+            {
+                ui.UpdateEffectStrengthSlider(1);
+            }
+        }
+    }
+
+    private void SetTailLearningRate()
+    {
+        _myController.SetLearningRate(Mathf.Lerp(5.0f, 15.0f, ui.GetStrengthPer1()));
+    }
+
+    private void StartShootBall()
+    {
+        animPlaying = true;
+        NotifyStartWalk();
+        movingBall.SetShootStrength(ui.GetStrengthPer1());
     }
 
     private void MoveScorpion()
