@@ -1062,7 +1062,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 27f152fca6933ad439214f8bce62898a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _myOctopus: {fileID: 0}
+  _myOctopus: {fileID: 310279045}
   animDuration: 5
   Body: {fileID: 8005202565346199705}
   StartPos: {fileID: 353675564}
@@ -1090,6 +1090,11 @@ MonoBehaviour:
   - {fileID: 2143072481}
   - {fileID: 290393798}
   - {fileID: 1581206102}
+  futureLegBasesHolder: {fileID: 0}
+  mainBody: {fileID: 0}
+  leftRight: 2
+  numLeftRight: 2
+  movingBall: {fileID: 0}
 --- !u!1 &267145458
 GameObject:
   m_ObjectHideFlags: 0
