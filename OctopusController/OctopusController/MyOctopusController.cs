@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Policy;
 using System.Text;
 using UnityEngine;
 
@@ -13,47 +12,53 @@ namespace OctopusController
     public class MyOctopusController
     {
 
-        private MyTentacleController[] _tentacles = new MyTentacleController[4];
+        MyTentacleController[] _tentacles = new MyTentacleController[4];
 
-        private Transform _currentRegion;
-        private Transform _target;
-        private int _tentacleNear;
+        Transform _currentRegion;
+        Transform _target;
 
-        private Transform[] _randomTargets;// = new Transform[4];
-
+        Transform[] _randomTargets;// = new Transform[4];
+        int _tentacleToTargetIndex = -1; // start at 0 
         bool _interceptShotBall;
 
-        private float _twistMin, _twistMax;
-        private float _swingMin, _swingMax;
+        float _twistMin, _twistMax;
+        float _swingMin, _swingMax;
 
-        private float _start, _end;
-        private bool _isShooting;
-
-        float _targetTimer = 0f;
-
-        readonly float _targetDuration = 3f;
-        readonly float _moveToTargetDuration = 0.75f;
-        float _moveToTargetTimer = 0f;
-
-        int _tentacleToTargetIndex = -1;
-
-        private Vector3 _clampedAnglesMin = new Vector3(-20, 0, -3);
-        private Vector3 _clampedAnglesMax = new Vector3(20, 0, 3);
-
-        bool _done = false;
-
-        readonly float _epsilon = 0.1f;
-
-        private int _mtries = 10;
-        private int[] _tries;
 
         float _theta;
         float _sin;
         float _cos;
 
+        private Dictionary<Transform, int> regionToTentacleIndex;
+
+
+        // Max number of tries before the system gives up (Maybe 10 is too high?)
+        private int _mtries = 10;
+        // The number of tries the system is at now
+        private int[] _tries;
+
+        // the range within which the target will be assumed to be reached
+        readonly float _epsilon = 0.1f;
+
+        // To check if the target is reached at any point
+        bool _done = false;
+
+        // To store the position of the target
         private Vector3[] tpos;
 
+
+        readonly float _targetDuration = 3f;
+        float _targetTimer = 0f;
+        readonly float _moveToTargetDuration = 0.75f;
+        float _moveToTargetTimer = 0f;
+
+
+        private Vector3 _clampedAnglesMin = new Vector3(-20, 0, -3);
+        private Vector3 _clampedAnglesMax = new Vector3(20, 0, 3);
+
+
         #region public methods
+        //DO NOT CHANGE THE PUBLIC METHODS!!
 
         public float TwistMin { set => _twistMin = value; }
         public float TwistMax { set => _twistMax = value; }
@@ -63,26 +68,57 @@ namespace OctopusController
 
         public void TestLogging(string objectName)
         {
+
+
             Debug.Log("hello, I am initializing my Octopus Controller in object " + objectName);
+
+
         }
 
         public void Init(Transform[] tentacleRoots, Transform[] randomTargets)
         {
-            _tentacles = new MyTentacleController[tentacleRoots.Length];
+            _randomTargets = randomTargets;
 
+            _tentacles = new MyTentacleController[tentacleRoots.Length];
+            tpos = new Vector3[tentacleRoots.Length];
+            _tries = new int[tentacleRoots.Length];
+            regionToTentacleIndex = new Dictionary<Transform, int>();
+
+
+            // foreach (Transform t in tentacleRoots)
             for (int i = 0; i < tentacleRoots.Length; i++)
             {
+
                 _tentacles[i] = new MyTentacleController();
                 _tentacles[i].LoadTentacleJoints(tentacleRoots[i], TentacleMode.TENTACLE);
+
+                //TODO: initialize any variables needed in ccd
+                tpos[i] = randomTargets[i].position;
+                _tries[i] = 0;
+
+                //TODO: use the regions however you need to make sure each tentacle stays in its region
+                regionToTentacleIndex.Add(randomTargets[i].parent, i);
             }
-            _randomTargets = randomTargets;
+
+            _tentacleToTargetIndex = -1;
+            _interceptShotBall = false;
+            _targetTimer = 0f;
+            _moveToTargetTimer = 0f;
         }
 
 
         public void NotifyTarget(Transform target, Transform region)
         {
+            if (!_interceptShotBall || _targetTimer >= _targetDuration) return;
+
             _currentRegion = region;
             _target = target;
+
+            if (regionToTentacleIndex.ContainsKey(region))
+            {
+                _tentacleToTargetIndex = regionToTentacleIndex[region];
+            }
+
         }
 
         public void NotifyShoot(bool interceptShotBall)
@@ -101,6 +137,7 @@ namespace OctopusController
 
         public void UpdateTentacles()
         {
+            //TODO: implement logic for the correct tentacle arm to stop the ball and implement CCD method
             update_ccd();
 
             if (_interceptShotBall)
@@ -128,13 +165,11 @@ namespace OctopusController
 
             }
         }
-
         #endregion
 
 
         #region private and internal methods
 
-        private Vector3 _r2;
         void update_ccd()
         {
             for (int tentacleI = 0; tentacleI < _tentacles.Length; ++tentacleI)
@@ -281,27 +316,7 @@ namespace OctopusController
             return q;
         }
 
-
-        internal float GetAngle(float theta)
-        {
-            if (theta > Mathf.PI) { theta -= Mathf.PI * 2; }
-            if (theta < -Mathf.PI) { theta += Mathf.PI * 2; }
-
-            return theta;
-        }
-        internal float LimitZRot(float theta)
-        {
-            theta *= Mathf.Rad2Deg;
-            if(theta > 15.0f)
-            {
-                theta = 15;
-            }
-            else if(theta < -15)
-            {
-                theta = -15;
-            }
-            return theta;
-        }
         #endregion
+
     }
 }

@@ -1,15 +1,11 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using OctopusController;
-using System;
-using UnityEditor.Presets;
 
 public class IK_Scorpion : MonoBehaviour
 {
-    MyScorpionController _myController= new MyScorpionController();
-
-    public IK_tentacles _myOctopus;
+    MyScorpionController _myController = new MyScorpionController();
 
     [Header("Body")]
     float animTime;
@@ -74,7 +70,7 @@ public class IK_Scorpion : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        _myController.InitLegs(legs,futureLegBases,legTargets);
+        _myController.InitLegs(legs, futureLegBases, legTargets);
         _myController.InitTail(tail);
 
         ResetTail();
@@ -92,57 +88,10 @@ public class IK_Scorpion : MonoBehaviour
         SetStartTailRotations();
     }
 
-    private void SetStartTailRotations()
-    {
-        List<Quaternion> startTailRotations = new List<Quaternion>();
-        List<Transform> tailBones = new List<Transform>();
-        Transform currentTailBone = tail;
-
-        while (currentTailBone.childCount > 0)
-        {
-            startTailRotations.Add(currentTailBone.rotation);
-            tailBones.Add(currentTailBone);
-            currentTailBone = currentTailBone.GetChild(1);
-        }
-
-        startTailRotations.Add(currentTailBone.rotation);
-        tailBones.Add(currentTailBone);
-
-        tailRotations = startTailRotations.ToArray();
-        tailBonesT = tailBones.ToArray();
-
-        tailEE = tailBonesT[tailBonesT.Length - 1];
-    }
-
-    
-    private void SetTailTargetPosition(Vector3 offsetDirection)
-    {
-        movingBall.SetTailTargetLocalPosition(offsetDirection * tailTargetBallLength);
-    }
-
-    private void ResetTail()
-    {
-        for (int i = 0; i < tailBonesT.Length; ++i)
-        {
-            tailBonesT[i].rotation = tailRotations[i];
-        }
-    }
-
-    private void SetTailHitOrientation()
-    {
-        _myController.SetOrientationDirections(ballHitToCenterDir);
-
-    }
-
-    private void ResetTailWeights()
-    {
-        _myController.SetDistanceAndOrientationWeight(0.0f, 1.0f);
-    }
-
     // Update is called once per frame
     void Update()
     {
-        if(animPlaying)
+        if (animPlaying)
             animTime += Time.deltaTime;
 
         NotifyTailTarget();
@@ -167,7 +116,7 @@ public class IK_Scorpion : MonoBehaviour
             ComputeTailTargetPosition();
             UpdateLegsAndBody();
             RotateBody();
-            
+
         }
         else if (animTime >= animDuration && animPlaying)
         {
@@ -185,6 +134,58 @@ public class IK_Scorpion : MonoBehaviour
         _myController.UpdateIK();
     }
 
+
+    public void NotifyShoot()
+    {
+        _myController.NotifyStopUpdateTail();
+    }
+
+    private void SetStartTailRotations()
+    {
+        List<Quaternion> startTailRotations = new List<Quaternion>();
+        List<Transform> tailBones = new List<Transform>();
+        Transform currentTailBone = tail;
+
+        while (currentTailBone.childCount > 0)
+        {
+            startTailRotations.Add(currentTailBone.rotation);
+            tailBones.Add(currentTailBone);
+            currentTailBone = currentTailBone.GetChild(1);
+        }
+
+        startTailRotations.Add(currentTailBone.rotation);
+        tailBones.Add(currentTailBone);
+
+        tailRotations = startTailRotations.ToArray();
+        tailBonesT = tailBones.ToArray();
+
+        tailEE = tailBonesT[tailBonesT.Length - 1];
+    }
+
+
+    private void SetTailTargetPosition(Vector3 offsetDirection)
+    {
+        movingBall.SetTailTargetLocalPosition(offsetDirection * tailTargetBallLength);
+    }
+
+    private void ResetTail()
+    {
+        for (int i = 0; i < tailBonesT.Length; ++i)
+        {
+            tailBonesT[i].rotation = tailRotations[i];
+        }
+    }
+
+    private void SetTailHitOrientation()
+    {
+        _myController.SetOrientationDirections(ballHitToCenterDir);
+
+    }
+
+    private void ResetTailWeights()
+    {
+        _myController.SetDistanceAndOrientationWeight(0.0f, 1.0f);
+    }
     private IEnumerator TailWeightChange()
     {
         yield return new WaitForSeconds(0.5f);
@@ -334,7 +335,7 @@ public class IK_Scorpion : MonoBehaviour
     //Function to send the tail target transform to the dll
     public void NotifyTailTarget()
     {
-        _myController.NotifyTailTarget(tailTarget);
+        _myController.NotifyTailTarget(tailTarget.transform);
     }
 
     //Trigger Function to start the walk animation
