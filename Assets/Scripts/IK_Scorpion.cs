@@ -68,7 +68,7 @@ public class IK_Scorpion : MonoBehaviour
     [SerializeField] private MovingBall movingBall;
 
     [Header("UI Controller")]
-    [SerializeField] private UIController ui;
+    [SerializeField] private UI_Controller ui;
 
     // Start is called before the first frame update
     void Start()
@@ -78,7 +78,7 @@ public class IK_Scorpion : MonoBehaviour
 
         ResetTail();
 
-        //SetTailTargetPosition(Vector3.forward);
+        SetTailTargetPosition(Vector3.forward);
 
 
         bodyToLegsOffset = (mainBody.position.y - futureLegBases[0].position.y) * Vector3.up;
@@ -112,11 +112,11 @@ public class IK_Scorpion : MonoBehaviour
         tailEE = tailBonesT[tailBonesT.Length - 1];
     }
 
-    /*
+    
     private void SetTailTargetPosition(Vector3 offsetDirection)
     {
         movingBall.SetTailTargetLocalPosition(offsetDirection * tailTargetBallLength);
-    }*/
+    }
 
     private void ResetTail()
     {

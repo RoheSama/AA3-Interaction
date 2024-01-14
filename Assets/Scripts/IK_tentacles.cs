@@ -16,8 +16,6 @@ public class IK_tentacles : MonoBehaviour
 
 
     MyOctopusController _myController = new MyOctopusController();
-    
-
 
     [Header("Exercise 3")]
     [SerializeField, Range(0, 360)]
@@ -52,9 +50,9 @@ public class IK_tentacles : MonoBehaviour
 
     }
 
-    public void NotifyShoot()
+    public void NotifyShoot(bool interceptShotBall)
     {
-        _myController.NotifyShoot();
+        _myController.NotifyShoot(interceptShotBall);
     }
 
 

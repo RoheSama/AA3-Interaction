@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Policy;
 using System.Text;
 using UnityEngine;
 
@@ -20,6 +21,7 @@ namespace OctopusController
 
         private Transform[] _randomTargets;// = new Transform[4];
 
+        bool _interceptShotBall;
 
         private float _twistMin, _twistMax;
         private float _swingMin, _swingMax;
@@ -27,14 +29,36 @@ namespace OctopusController
         private float _start, _end;
         private bool _isShooting;
 
+        float _targetTimer = 0f;
+
+        readonly float _targetDuration = 3f;
+        readonly float _moveToTargetDuration = 0.75f;
+        float _moveToTargetTimer = 0f;
+
+        int _tentacleToTargetIndex = -1;
+
+        private Vector3 _clampedAnglesMin = new Vector3(-20, 0, -3);
+        private Vector3 _clampedAnglesMax = new Vector3(20, 0, 3);
+
+        bool _done = false;
+
+        readonly float _epsilon = 0.1f;
+
+        private int _mtries = 10;
+        private int[] _tries;
+
+        float _theta;
+        float _sin;
+        float _cos;
+
+        private Vector3[] tpos;
+
         #region public methods
 
         public float TwistMin { set => _twistMin = value; }
         public float TwistMax { set => _twistMax = value; }
         public float SwingMin { set => _swingMin = value; }
         public float SwingMax { set => _swingMax = value; }
-
-        float[] _theta, _sin, _cos;
 
 
         public void TestLogging(string objectName)
@@ -61,37 +85,16 @@ namespace OctopusController
             _target = target;
         }
 
-        public void NotifyShoot()
+        public void NotifyShoot(bool interceptShotBall)
         {
+            //TODO. what happens here?
             Debug.Log("Shoot");
-            _start = 0;
-            _end = 3;
-            _isShooting = true;
-            //float temp = Vector3.Distance(_tentacles[0].Bones[_tentacles[0].Bones.Length - 1].position, _currentRegion.position);
 
-            //for (int i = 0; i < _tentacles.Length; i++)
-            //{
-            //    if (Vector3.Distance(_tentacles[i].Bones[_tentacles[i].Bones.Length - 1].position, _currentRegion.position) < temp)
-            //    {
-            //        _tentacleNear = i;
-            //    }
-            //}
-
-            if (_currentRegion.gameObject.transform.name == "region1")
+            _interceptShotBall = interceptShotBall;
+            if (interceptShotBall)
             {
-                _tentacleNear = 0;
-            }
-            else if (_currentRegion.gameObject.transform.name == "region2")
-            {
-                _tentacleNear = 1;
-            }
-            else if (_currentRegion.gameObject.transform.name == "region3")
-            {
-                _tentacleNear = 2;
-            }
-            else if (_currentRegion.gameObject.transform.name == "region4")
-            {
-                _tentacleNear = 3;
+                _targetTimer = 0f;
+                //_moveToTargetTimer = 0f;
             }
         }
 
@@ -100,14 +103,29 @@ namespace OctopusController
         {
             update_ccd();
 
-            if (_isShooting)
+            if (_interceptShotBall)
             {
-                _start += Time.deltaTime;
-                if (_start > _end)
+                if (_targetTimer < _targetDuration)
                 {
-                    _start = 0;
-                    _isShooting = false;
+                    _targetTimer += Time.deltaTime;
                 }
+
+                if (_targetTimer < _moveToTargetDuration)
+                {
+                    _moveToTargetTimer += Time.deltaTime;
+                    _moveToTargetTimer = Mathf.Clamp(_moveToTargetTimer, 0f, _moveToTargetDuration);
+                }
+                else if (_targetTimer > _targetDuration)
+                {
+                    _moveToTargetTimer -= Time.deltaTime;
+                    _moveToTargetTimer = Mathf.Clamp(_moveToTargetTimer, 0f, _moveToTargetDuration);
+
+                    if (_moveToTargetTimer < 0.0001f)
+                    {
+                        _tentacleToTargetIndex = -1;
+                    }
+                }
+
             }
         }
 
@@ -117,66 +135,153 @@ namespace OctopusController
         #region private and internal methods
 
         private Vector3 _r2;
-        private void update_ccd()
+        void update_ccd()
         {
-            foreach (var tentacle in _tentacles)
+            for (int tentacleI = 0; tentacleI < _tentacles.Length; ++tentacleI)
             {
-                _theta = new float[tentacle.Bones.Length];
-                _sin = new float[tentacle.Bones.Length];
-                _cos = new float[tentacle.Bones.Length];
+                Transform[] tentacleBones = _tentacles[tentacleI].Bones;
+
+                Vector3 tentacleTargetPos;
+                if (_interceptShotBall && tentacleI == _tentacleToTargetIndex)
                 {
-                    for (int j = tentacle.Bones.Length - 2; j >= 0; j--)
-                    {
-                        Vector3 r1 = tentacle.Bones[tentacle.Bones.Length - 1].transform.position - tentacle.Bones[j].transform.position;
-
-                        //Change target depending if it's shooting
-                        if (_isShooting && _tentacleNear == Array.IndexOf(_tentacles, tentacle))
-                        {
-                            _r2 = _target.transform.position - _tentacles[_tentacleNear].Bones[j].transform.position;
-                            
-                        }
-                        else if(_isShooting && _tentacleNear != Array.IndexOf(_tentacles, tentacle))
-                        {
-                            _r2 = _randomTargets[Array.IndexOf(_tentacles, tentacle)].transform.position - tentacle.Bones[j].transform.position;
-                        }
-                        else
-                        {
-                            _r2 = _randomTargets[Array.IndexOf(_tentacles, tentacle)].transform.position - tentacle.Bones[j].transform.position;
-                        }
-
-                        // avoid the division of small numbers
-                        if (r1.magnitude * _r2.magnitude <= 0.001f)
-                        {
-                            _cos[j] = 1;
-                            _sin[j] = 0;
-                        }
-                        else
-                        {
-                            _cos[j] = Vector3.Dot(r1, _r2) / (r1.magnitude * _r2.magnitude);
-                            _sin[j] = Vector3.Cross(r1, _r2).magnitude / (r1.magnitude * _r2.magnitude);
-                        }
-
-                        Vector3 axis = Vector3.Cross(r1, _r2).normalized;
-                        _theta[j] = Mathf.Acos(Mathf.Clamp(_cos[j], -1, 1));
-
-                        if (_sin[j] < 0.0f)
-                            _theta[j] *= -1.0f;
-
-                        _theta[j] = GetAngle(_theta[j]);
-
-                        //(not working i think)
-                        _theta[j] = LimitZRot(_theta[j]);
-
-                        tentacle.Bones[j].transform.Rotate(axis, _theta[j], Space.World);
-                        Quaternion twist = new Quaternion(0, tentacle.Bones[j].transform.localRotation.y, 0, tentacle.Bones[j].transform.localRotation.w);
-                        twist = twist.normalized;
-                        Quaternion swing = tentacle.Bones[j].transform.localRotation * Quaternion.Inverse(twist);
-                        tentacle.Bones[j].transform.localRotation = swing.normalized;
-
-                    }
+                    tentacleTargetPos = Vector3.Lerp(_randomTargets[tentacleI].position, _target.position, _moveToTargetTimer / _moveToTargetDuration);
                 }
+                else
+                {
+                    tentacleTargetPos = _randomTargets[tentacleI].position;
+                }
+
+                _done = false;
+                if (!_done)
+                {
+
+                    if (_tries[tentacleI] <= _mtries)
+                    {
+                        for (int i = tentacleBones.Length - 2; i >= 0; i--)
+                        {
+                            // The vector from the ith joint to the end effector
+                            Vector3 r1 = (tentacleBones[tentacleBones.Length - 1].transform.position - tentacleBones[i].transform.position).normalized;
+
+                            // The vector from the ith joint to the target
+                            Vector3 r2 = (tentacleTargetPos - tentacleBones[i].transform.position).normalized;
+
+                            // to avoid dividing by tiny numbers
+                            if (r1.magnitude * r2.magnitude <= 0.001f)
+                            {
+                                // cos ? sin? 
+                                _cos = 1.0f;
+                                _sin = 0.0f;
+                            }
+                            else
+                            {
+                                // find the components using dot and cross product
+                                float dot = Vector3.Dot(r1, r2);
+                                _cos = dot;
+                                Vector3 cross = Vector3.Cross(r1, r2);
+                                _sin = cross.magnitude;
+                            }
+
+
+                            // The axis of rotation 
+                            Vector3 axis = Vector3.Cross(r1, r2).normalized;
+
+                            // find the angle between r1 and r2 (and clamp values if needed avoid errors)
+                            _theta = Mathf.Acos(Mathf.Clamp(_cos, -1f, 1f));
+
+                            //Optional. correct angles if needed, depending on angles invert angle if sin component is negative
+                            if (_sin < 0.0f)
+                                _theta = -_theta;
+
+                            if (_theta > 180.0f)
+                            {
+                                _theta = 180.0f - _theta;
+                            }
+
+
+                            // obtain an angle value between -pi and pi, and then convert to degrees
+                            _theta = _theta * Mathf.Rad2Deg;
+
+                            // rotate the ith joint along the axis by theta degrees in the world space.
+                            tentacleBones[i].transform.rotation = Quaternion.AngleAxis(_theta, axis) * tentacleBones[i].transform.rotation;
+                            ClampBoneRotation(tentacleBones[i].transform);
+
+                            ++_tries[tentacleI];
+                        }
+                    }
+
+                    // find the difference in the positions of the end effector and the target
+                    Vector3 targetToEffector = tentacleBones[tentacleBones.Length - 1].transform.position - tentacleTargetPos;
+
+                    // if target is within reach (within epsilon) then the process is done
+                    if (targetToEffector.magnitude < _epsilon)
+                    {
+                        _done = true;
+                    }
+                    // if it isn't, then the process should be repeated
+                    else
+                    {
+                        _done = false;
+                    }
+
+                    // the target has moved, reset tries to 0 and change tpos
+                    if (tentacleTargetPos != tpos[tentacleI])
+                    {
+                        _tries[tentacleI] = 0;
+                        tpos[tentacleI] = tentacleTargetPos;
+                    }
+
+                }
+
+                _tentacles[tentacleI].EndEffectorSphere = tentacleBones[tentacleBones.Length - 1];
+
             }
+
+
+
         }
+
+        private void ClampBoneRotation(Transform bone)
+        {
+            Quaternion swingLocalRotation = GetSwing(bone.localRotation, Vector3.up);
+
+            Quaternion clampedLocalRotation = GetClampedQuaternion(swingLocalRotation, _clampedAnglesMin, _clampedAnglesMax);
+
+            bone.localRotation = clampedLocalRotation;
+        }
+
+        private Quaternion GetTwist(Quaternion rotation, Vector3 twistAxis)
+        {
+            return new Quaternion(rotation.x * twistAxis.x, rotation.y * twistAxis.y, rotation.z * twistAxis.z, rotation.w);
+        }
+
+        private Quaternion GetSwing(Quaternion rotation, Vector3 twistAxis)
+        {
+            return rotation * Quaternion.Inverse(GetTwist(rotation, twistAxis));
+        }
+
+        private Quaternion GetClampedQuaternion(Quaternion q, Vector3 minBounds, Vector3 maxBounds)
+        {
+            q.x /= q.w;
+            q.y /= q.w;
+            q.z /= q.w;
+            q.w = 1.0f;
+
+            float angleX = 2.0f * Mathf.Rad2Deg * Mathf.Atan(q.x);
+            angleX = Mathf.Clamp(angleX, minBounds.x, maxBounds.x);
+            q.x = Mathf.Tan(0.5f * Mathf.Deg2Rad * angleX);
+
+            float angleY = 2.0f * Mathf.Rad2Deg * Mathf.Atan(q.y);
+            angleY = Mathf.Clamp(angleY, minBounds.y, maxBounds.y);
+            q.y = Mathf.Tan(0.5f * Mathf.Deg2Rad * angleY);
+
+            float angleZ = 2.0f * Mathf.Rad2Deg * Mathf.Atan(q.z);
+            angleZ = Mathf.Clamp(angleZ, minBounds.z, maxBounds.z);
+            q.z = Mathf.Tan(0.5f * Mathf.Deg2Rad * angleZ);
+
+            return q;
+        }
+
+
         internal float GetAngle(float theta)
         {
             if (theta > Mathf.PI) { theta -= Mathf.PI * 2; }
