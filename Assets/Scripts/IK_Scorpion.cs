@@ -79,6 +79,7 @@ public class IK_Scorpion : MonoBehaviour
         ResetTail();
 
         SetTailTargetPosition(Vector3.forward);
+        tailTargetBallLength = movingBall._ballRadius * 2;
 
 
         bodyToLegsOffset = (mainBody.position.y - futureLegBases[0].position.y) * Vector3.up;

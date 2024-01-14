@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -54,7 +54,7 @@ public class MovingBall : MonoBehaviour
 
     bool _isRotatingClockwise;
     [SerializeField] private Transform _tailTarget;
-    [SerializeField] private MovingTarget _movingBallTarget;
+    [SerializeField] private MovingBallTarget _movingBallTarget;
 
     public readonly float _ballRadius = 0.0016f;
 

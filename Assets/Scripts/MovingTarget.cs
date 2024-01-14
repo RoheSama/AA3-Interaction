@@ -66,7 +66,8 @@ public class MovingTarget: MonoBehaviour
 
         if (_mode == MovingMode.USERTARGET)
         {
-            //get the Input from Horizontal axis
+            //get the Input from Ho
+            //rizontal axis
             float horizontalInput = Input.GetAxis("Horizontal");
             //get the Input from Vertical axis
             float verticalInput = Input.GetAxis("Vertical");
