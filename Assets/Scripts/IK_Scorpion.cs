@@ -28,7 +28,7 @@ public class IK_Scorpion : MonoBehaviour
     [Header("Tail")]
     public Transform tailTarget;
     public Transform tail;
-    private Transform[] tailBones;
+    private Transform[] tailBonesT;
     private Transform tailEE;
 
     private Vector3 tailForwardEE;
@@ -67,6 +67,9 @@ public class IK_Scorpion : MonoBehaviour
     [Header("Ball")]
     [SerializeField] private MovingBall movingBall;
 
+    [Header("UI Controller")]
+    [SerializeField] private UIController ui;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -75,7 +78,7 @@ public class IK_Scorpion : MonoBehaviour
 
         ResetTail();
 
-        SetTailTargetPosition(Vector3.forward);
+        //SetTailTargetPosition(Vector3.forward);
 
 
         bodyToLegsOffset = (mainBody.position.y - futureLegBases[0].position.y) * Vector3.up;
@@ -89,13 +92,31 @@ public class IK_Scorpion : MonoBehaviour
 
     private void SetStartTailRotations()
     {
-        throw new NotImplementedException();
+        List<Quaternion> startTailRotations = new List<Quaternion>();
+        List<Transform> tailBones = new List<Transform>();
+        Transform currentTailBone = tail;
+
+        while (currentTailBone.childCount > 0)
+        {
+            startTailRotations.Add(currentTailBone.rotation);
+            tailBones.Add(currentTailBone);
+            currentTailBone = currentTailBone.GetChild(1);
+        }
+
+        startTailRotations.Add(currentTailBone.rotation);
+        tailBones.Add(currentTailBone);
+
+        tailRotations = startTailRotations.ToArray();
+        tailBonesT = tailBones.ToArray();
+
+        tailEE = tailBonesT[tailBonesT.Length - 1];
     }
 
-    private void SetTailTargetPosition(Vector3 forward)
+    /*
+    private void SetTailTargetPosition(Vector3 offsetDirection)
     {
-        throw new NotImplementedException();
-    }
+        movingBall.SetTailTargetLocalPosition(offsetDirection * tailTargetBallLength);
+    }*/
 
     private void ResetTail()
     {
@@ -109,7 +130,9 @@ public class IK_Scorpion : MonoBehaviour
             animTime += Time.deltaTime;
 
         NotifyTailTarget();
-        
+
+        UpdateInputs();
+
         if (Input.GetKeyDown(KeyCode.Space))
         {
             NotifyStartWalk();
@@ -129,7 +152,87 @@ public class IK_Scorpion : MonoBehaviour
 
         _myController.UpdateIK();
     }
-    
+
+    private void UpdateInputs()
+    {
+        throw new NotImplementedException();
+    }
+
+    private void MoveScorpion()
+    {
+        float t = animTime / animDuration;
+        float sint = Mathf.Clamp01(t * 1.2f) * 2f * Mathf.PI * leftRightSines;
+        moveOffset.x = Mathf.Sin(sint) * leftRight;
+
+        currentForward = mainBody.position - lastBodyPosition;
+
+        if (currentForward.sqrMagnitude > 0.0001f)
+        {
+            currentForward = currentForward.normalized;
+        }
+
+        lastBodyPosition = mainBody.position;
+
+        Body.position = Vector3.Lerp(StartPos.position, EndPos.position, t) + moveOffset;
+    }
+
+    private void UpdateLegsAndBody()
+    {
+        Vector3 bodyLegsAvgPos = Vector3.zero;
+
+        Vector3 leftLegsAvgPos = Vector3.zero;
+        Vector3 rightLegsAvgPos = Vector3.zero;
+
+        for (int legI = 0; legI < futureLegBases.Length; ++legI)
+        {
+            Vector3 hitOrigin = futureLegBases[legI].position + (-futureLegBaseDirection * futureLegBaseOrigin);
+            //Debug.DrawLine(hitOrigin, hitOrigin + (futureLegBaseDirection * futureLegBaseDistance), Color.magenta, Time.deltaTime);
+
+            RaycastHit hit;
+            if (Physics.Raycast(hitOrigin, futureLegBaseDirection, out hit, futureLegBaseDistance))
+            {
+                futureLegBases[legI].position = hit.point;
+            }
+
+            bodyLegsAvgPos += futureLegBases[legI].position;
+
+            if (legI % 2 == 0)
+                rightLegsAvgPos += futureLegBases[legI].position;
+            else
+                leftLegsAvgPos += futureLegBases[legI].position;
+        }
+
+        float numLegs = (float)futureLegBases.Length;
+        bodyLegsAvgPos /= numLegs;
+        mainBody.position = bodyLegsAvgPos + bodyToLegsOffset;
+
+        float numLegsEachSide = numLegs / 2f;
+        rightLegsAvgPos /= numLegsEachSide;
+        leftLegsAvgPos /= numLegsEachSide;
+
+        if (currentForward.sqrMagnitude > 0.0001f)
+        {
+            Vector3 newRightBodyAxis = (rightLegsAvgPos - leftLegsAvgPos).normalized;
+
+            Vector3 newUpBodyAxis = Vector3.Cross(currentForward, newRightBodyAxis).normalized;
+            Vector3 newForwardAxis = Vector3.Cross(newUpBodyAxis, newRightBodyAxis).normalized;
+
+            lookRotation = Quaternion.LookRotation(-currentForward, newUpBodyAxis);
+        }
+    }
+
+    private void RotateBody()
+    {
+        if (currentForward.sqrMagnitude > 0.0001f)
+        {
+            mainBody.rotation = Quaternion.RotateTowards(mainBody.rotation, lookRotation, 200f * Time.deltaTime);
+
+            futureLegBasesHolder.rotation = Quaternion.AngleAxis(mainBody.rotation.eulerAngles.y, Vector3.up);
+        }
+    }
+
+
+
     //Function to send the tail target transform to the dll
     public void NotifyTailTarget()
     {
