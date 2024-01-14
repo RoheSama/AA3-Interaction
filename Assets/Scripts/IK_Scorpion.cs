@@ -94,7 +94,8 @@ public class IK_Scorpion : MonoBehaviour
         if (animPlaying)
             animTime += Time.deltaTime;
 
-        NotifyTailTarget();
+        //NotifyTailTarget();
+        //NotifyTailTarget();
 
         UpdateInputs();
 
@@ -335,7 +336,7 @@ public class IK_Scorpion : MonoBehaviour
     //Function to send the tail target transform to the dll
     public void NotifyTailTarget()
     {
-        _myController.NotifyTailTarget(tailTarget.transform);
+            _myController.NotifyTailTarget(tailTarget.transform);
     }
 
     //Trigger Function to start the walk animation
