@@ -12,50 +12,48 @@ namespace OctopusController
     public class MyOctopusController
     {
 
-        MyTentacleController[] _tentacles = new MyTentacleController[4];
+        // Tentacle-related variables
+        private MyTentacleController[] _tentacles = new MyTentacleController[4];
+        private Transform[] _randomTargets; // = new Transform[4];
+        private int _tentacleToTargetIndex = -1; // start at 0
+        private bool _interceptShotBall;
+        private int[] _tries;
 
-        Transform _currentRegion;
-        Transform _target;
-
-        Transform[] _randomTargets;// = new Transform[4];
-        int _tentacleToTargetIndex = -1; // start at 0 
-        bool _interceptShotBall;
-
-        float _twistMin, _twistMax;
-        float _swingMin, _swingMax;
-
-
-        float _theta;
-        float _sin;
-        float _cos;
-
+        // Target and region variables
+        private Transform _currentRegion;
+        private Transform _target;
         private Dictionary<Transform, int> regionToTentacleIndex;
 
+        // Angle calculation variables
+        private float _theta;
+        private float _sin;
+        private float _cos;
 
         // Max number of tries before the system gives up (Maybe 10 is too high?)
         private int _mtries = 10;
-        // The number of tries the system is at now
-        private int[] _tries;
 
-        // the range within which the target will be assumed to be reached
-        readonly float _epsilon = 0.1f;
+        // Range within which the target will be assumed to be reached
+        private readonly float _epsilon = 0.1f;
 
         // To check if the target is reached at any point
-        bool _done = false;
+        private bool _done = false;
 
         // To store the position of the target
         private Vector3[] tpos;
 
+        // Target movement variables
+        private readonly float _targetDuration = 3f;
+        private float _targetTimer = 0f;
+        private readonly float _moveToTargetDuration = 0.75f;
+        private float _moveToTargetTimer = 0f;
 
-        readonly float _targetDuration = 3f;
-        float _targetTimer = 0f;
-        readonly float _moveToTargetDuration = 0.75f;
-        float _moveToTargetTimer = 0f;
-
-
+        // Clamped angle limits
         private Vector3 _clampedAnglesMin = new Vector3(-20, 0, -3);
         private Vector3 _clampedAnglesMax = new Vector3(20, 0, 3);
 
+
+        float _twistMin, _twistMax;
+        float _swingMin, _swingMax;
 
         #region public methods
         //DO NOT CHANGE THE PUBLIC METHODS!!
@@ -64,16 +62,6 @@ namespace OctopusController
         public float TwistMax { set => _twistMax = value; }
         public float SwingMin { set => _swingMin = value; }
         public float SwingMax { set => _swingMax = value; }
-
-
-        public void TestLogging(string objectName)
-        {
-
-
-            Debug.Log("hello, I am initializing my Octopus Controller in object " + objectName);
-
-
-        }
 
         public void Init(Transform[] tentacleRoots, Transform[] randomTargets)
         {
@@ -123,22 +111,19 @@ namespace OctopusController
 
         public void NotifyShoot(bool interceptShotBall)
         {
-            //TODO. what happens here?
             Debug.Log("Shoot");
 
             _interceptShotBall = interceptShotBall;
             if (interceptShotBall)
             {
                 _targetTimer = 0f;
-                //_moveToTargetTimer = 0f;
             }
         }
 
 
         public void UpdateTentacles()
         {
-            //TODO: implement logic for the correct tentacle arm to stop the ball and implement CCD method
-            update_ccd();
+            UpdateCCD();
 
             if (_interceptShotBall)
             {
@@ -170,109 +155,64 @@ namespace OctopusController
 
         #region private and internal methods
 
-        void update_ccd()
+        void UpdateCCD()
         {
-            for (int tentacleI = 0; tentacleI < _tentacles.Length; ++tentacleI)
+            for (int tentacleIndex = 0; tentacleIndex < _tentacles.Length; ++tentacleIndex)
             {
-                Transform[] tentacleBones = _tentacles[tentacleI].Bones;
+                Transform[] tentacleBones = _tentacles[tentacleIndex].Bones;
+                Vector3 tentacleTargetPos = (_interceptShotBall && tentacleIndex == _tentacleToTargetIndex) ?
+                                            Vector3.Lerp(_randomTargets[tentacleIndex].position, _target.position, _moveToTargetTimer / _moveToTargetDuration) :
+                                            _randomTargets[tentacleIndex].position;
 
-                Vector3 tentacleTargetPos;
-                if (_interceptShotBall && tentacleI == _tentacleToTargetIndex)
-                {
-                    tentacleTargetPos = Vector3.Lerp(_randomTargets[tentacleI].position, _target.position, _moveToTargetTimer / _moveToTargetDuration);
-                }
-                else
-                {
-                    tentacleTargetPos = _randomTargets[tentacleI].position;
-                }
+                bool done = false;
+                int triesCount = _tries[tentacleIndex];
 
-                _done = false;
-                if (!_done)
+                if (triesCount <= _mtries)
                 {
-
-                    if (_tries[tentacleI] <= _mtries)
+                    for (int boneIndex = tentacleBones.Length - 2; boneIndex >= 0; boneIndex--)
                     {
-                        for (int i = tentacleBones.Length - 2; i >= 0; i--)
+                        Vector3 r1 = (tentacleBones[tentacleBones.Length - 1].position - tentacleBones[boneIndex].position).normalized;
+                        Vector3 r2 = (tentacleTargetPos - tentacleBones[boneIndex].position).normalized;
+
+                        if (r1.magnitude * r2.magnitude <= 0.001f)
                         {
-                            // The vector from the ith joint to the end effector
-                            Vector3 r1 = (tentacleBones[tentacleBones.Length - 1].transform.position - tentacleBones[i].transform.position).normalized;
-
-                            // The vector from the ith joint to the target
-                            Vector3 r2 = (tentacleTargetPos - tentacleBones[i].transform.position).normalized;
-
-                            // to avoid dividing by tiny numbers
-                            if (r1.magnitude * r2.magnitude <= 0.001f)
-                            {
-                                // cos ? sin? 
-                                _cos = 1.0f;
-                                _sin = 0.0f;
-                            }
-                            else
-                            {
-                                // find the components using dot and cross product
-                                float dot = Vector3.Dot(r1, r2);
-                                _cos = dot;
-                                Vector3 cross = Vector3.Cross(r1, r2);
-                                _sin = cross.magnitude;
-                            }
-
-
-                            // The axis of rotation 
-                            Vector3 axis = Vector3.Cross(r1, r2).normalized;
-
-                            // find the angle between r1 and r2 (and clamp values if needed avoid errors)
-                            _theta = Mathf.Acos(Mathf.Clamp(_cos, -1f, 1f));
-
-                            //Optional. correct angles if needed, depending on angles invert angle if sin component is negative
-                            if (_sin < 0.0f)
-                                _theta = -_theta;
-
-                            if (_theta > 180.0f)
-                            {
-                                _theta = 180.0f - _theta;
-                            }
-
-
-                            // obtain an angle value between -pi and pi, and then convert to degrees
-                            _theta = _theta * Mathf.Rad2Deg;
-
-                            // rotate the ith joint along the axis by theta degrees in the world space.
-                            tentacleBones[i].transform.rotation = Quaternion.AngleAxis(_theta, axis) * tentacleBones[i].transform.rotation;
-                            ClampBoneRotation(tentacleBones[i].transform);
-
-                            ++_tries[tentacleI];
+                            _cos = 1.0f;
+                            _sin = 0.0f;
                         }
-                    }
+                        else
+                        {
+                            _cos = Vector3.Dot(r1, r2);
+                            _sin = Vector3.Cross(r1, r2).magnitude;
+                        }
 
-                    // find the difference in the positions of the end effector and the target
-                    Vector3 targetToEffector = tentacleBones[tentacleBones.Length - 1].transform.position - tentacleTargetPos;
+                        Vector3 axis = Vector3.Cross(r1, r2).normalized;
+                        _theta = Mathf.Acos(Mathf.Clamp(_cos, -1f, 1f)) * Mathf.Rad2Deg;
 
-                    // if target is within reach (within epsilon) then the process is done
-                    if (targetToEffector.magnitude < _epsilon)
-                    {
-                        _done = true;
-                    }
-                    // if it isn't, then the process should be repeated
-                    else
-                    {
-                        _done = false;
-                    }
+                        if (_sin < 0.0f)
+                            _theta = -_theta;
 
-                    // the target has moved, reset tries to 0 and change tpos
-                    if (tentacleTargetPos != tpos[tentacleI])
-                    {
-                        _tries[tentacleI] = 0;
-                        tpos[tentacleI] = tentacleTargetPos;
-                    }
+                        if (_theta > 180.0f)
+                            _theta = 180.0f - _theta;
 
+                        tentacleBones[boneIndex].rotation = Quaternion.AngleAxis(_theta, axis) * tentacleBones[boneIndex].rotation;
+                        ClampBoneRotation(tentacleBones[boneIndex]);
+
+                        ++_tries[tentacleIndex];
+                    }
                 }
 
-                _tentacles[tentacleI].EndEffectorSphere = tentacleBones[tentacleBones.Length - 1];
+                Vector3 targetToEffector = tentacleBones[tentacleBones.Length - 1].position - tentacleTargetPos;
 
+                done = targetToEffector.magnitude < _epsilon;
+
+                if (tentacleTargetPos != tpos[tentacleIndex])
+                {
+                    _tries[tentacleIndex] = 0;
+                    tpos[tentacleIndex] = tentacleTargetPos;
+                }
+
+                _tentacles[tentacleIndex].EndEffectorSphere = tentacleBones[tentacleBones.Length - 1];
             }
-
-
-
         }
 
         private void ClampBoneRotation(Transform bone)
