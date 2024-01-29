@@ -4,26 +4,9 @@ using UnityEngine;
 
 public class NotifyRegion : MonoBehaviour
 {
-
     Transform _region;
 
     public Transform Region { get { return _region; } }
-
-    void Start()
-    {
-
-    }
- 
-
-    void Update()
-    {
-    
-
-
-    }
-
-
-
 
     private void OnCollisionExit(Collision collision)
     {
@@ -36,9 +19,5 @@ public class NotifyRegion : MonoBehaviour
         _region = collision.collider.transform;
         _region = null;
     }
-
-
-
-
 }
 

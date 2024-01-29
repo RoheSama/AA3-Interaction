@@ -16,8 +16,6 @@ public class IK_tentacles : MonoBehaviour
 
 
     MyOctopusController _myController = new MyOctopusController();
-    
-
 
     [Header("Exercise 3")]
     [SerializeField, Range(0, 360)]
@@ -52,9 +50,9 @@ public class IK_tentacles : MonoBehaviour
 
     }
 
-    public void NotifyShoot()
+    public void NotifyShoot(bool interceptShotBall)
     {
-        _myController.NotifyShoot();
+        _myController.NotifyShoot(interceptShotBall);
     }
 
 
@@ -64,8 +62,7 @@ public class IK_tentacles : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        
-        _myController.TestLogging(gameObject.name);
+
         _myController.Init(_tentacles, _randomTargets);
 
         _myController.TwistMax = _twistMax;
