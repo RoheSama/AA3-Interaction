@@ -65,13 +65,15 @@ public class IK_Scorpion : MonoBehaviour
     [SerializeField] private MovingBall movingBall;
 
     [Header("UI Controller")]
-    [SerializeField] private UI_Script ui;
+    [SerializeField] private UI_Controller ui;
 
     // Start is called before the first frame update
     void Start()
     {
         _myController.InitLegs(legs, futureLegBases, legTargets);
         _myController.InitTail(tail);
+
+        ResetTail();
 
         SetTailTargetPosition(Vector3.forward);
         tailTargetBallLength = movingBall._ballRadius * 2;
@@ -84,7 +86,6 @@ public class IK_Scorpion : MonoBehaviour
         leftRightSines = (float)numLeftRight / 2f;
 
         SetStartTailRotations();
-        ResetTail();
     }
 
     // Update is called once per frame
@@ -93,7 +94,7 @@ public class IK_Scorpion : MonoBehaviour
         if (animPlaying)
             animTime += Time.deltaTime;
 
-        NotifyTailTarget();
+        //NotifyTailTarget();
         //NotifyTailTarget();
 
         UpdateInputs();
@@ -166,6 +167,14 @@ public class IK_Scorpion : MonoBehaviour
     private void SetTailTargetPosition(Vector3 offsetDirection)
     {
         movingBall.SetTailTargetLocalPosition(offsetDirection * tailTargetBallLength);
+    }
+
+    private void ResetTail()
+    {
+        for (int i = 0; i < tailBonesT.Length; ++i)
+        {
+            tailBonesT[i].rotation = tailRotations[i];
+        }
     }
 
     private void SetTailHitOrientation()
@@ -255,21 +264,15 @@ public class IK_Scorpion : MonoBehaviour
     private void UpdateLegsAndBody()
     {
         Vector3 bodyLegsAvgPos = Vector3.zero;
+
         Vector3 leftLegsAvgPos = Vector3.zero;
         Vector3 rightLegsAvgPos = Vector3.zero;
 
-        UpdateFutureLegBases(ref bodyLegsAvgPos, ref leftLegsAvgPos, ref rightLegsAvgPos);
-
-        CalculateBodyPosition(ref bodyLegsAvgPos);
-        CalculateBodyRotation(ref leftLegsAvgPos, ref rightLegsAvgPos);
-
-    }
-
-    private void UpdateFutureLegBases(ref Vector3 bodyLegsAvgPos, ref Vector3 leftLegsAvgPos, ref Vector3 rightLegsAvgPos)
-    {
         for (int legI = 0; legI < futureLegBases.Length; ++legI)
         {
             Vector3 hitOrigin = futureLegBases[legI].position + (-futureLegBaseDirection * futureLegBaseOrigin);
+            //Debug.DrawLine(hitOrigin, hitOrigin + (futureLegBaseDirection * futureLegBaseDistance), Color.magenta, Time.deltaTime);
+
             RaycastHit hit;
             if (Physics.Raycast(hitOrigin, futureLegBaseDirection, out hit, futureLegBaseDistance))
             {
@@ -283,22 +286,23 @@ public class IK_Scorpion : MonoBehaviour
             else
                 leftLegsAvgPos += futureLegBases[legI].position;
         }
-    }
 
-    private void CalculateBodyPosition(ref Vector3 bodyLegsAvgPos)
-    {
         float numLegs = (float)futureLegBases.Length;
         bodyLegsAvgPos /= numLegs;
         mainBody.position = bodyLegsAvgPos + bodyToLegsOffset;
-    }
 
-    private void CalculateBodyRotation(ref Vector3 rightLegsAvgPos, ref Vector3 leftLegsAvgPos)
-    {
+        float numLegsEachSide = numLegs / 2f;
+        rightLegsAvgPos /= numLegsEachSide;
+        leftLegsAvgPos /= numLegsEachSide;
+
         if (currentForward.sqrMagnitude > 0.0001f)
         {
             Vector3 newRightBodyAxis = (rightLegsAvgPos - leftLegsAvgPos).normalized;
+
             Vector3 newUpBodyAxis = Vector3.Cross(currentForward, newRightBodyAxis).normalized;
-            Quaternion lookRotation = Quaternion.LookRotation(-currentForward, newUpBodyAxis);
+            Vector3 newForwardAxis = Vector3.Cross(newUpBodyAxis, newRightBodyAxis).normalized;
+
+            lookRotation = Quaternion.LookRotation(-currentForward, newUpBodyAxis);
         }
     }
 
@@ -329,19 +333,13 @@ public class IK_Scorpion : MonoBehaviour
 
         SetTailTargetPosition(offsetDirection);
     }
-
-    private void ResetTail()
-    {
-        for (int i = 0; i < tailBonesT.Length; ++i)
-        {
-            tailBonesT[i].rotation = tailRotations[i];
-        }
-    }
+    //Function to send the tail target transform to the dll
     public void NotifyTailTarget()
     {
-        _myController.NotifyTailTarget(tailTarget.transform);
+            _myController.NotifyTailTarget(tailTarget.transform);
     }
 
+    //Trigger Function to start the walk animation
     public void NotifyStartWalk()
     {
 

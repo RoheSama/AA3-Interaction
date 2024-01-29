@@ -62,7 +62,8 @@ public class IK_tentacles : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-
+        
+        _myController.TestLogging(gameObject.name);
         _myController.Init(_tentacles, _randomTargets);
 
         _myController.TwistMax = _twistMax;

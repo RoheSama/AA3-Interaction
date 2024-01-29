@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class UI_Script : MonoBehaviour
+public class UI_Controller : MonoBehaviour
 {
     [Header("Strength Slider")]
     [SerializeField] private Slider _strengthSlider;
@@ -15,12 +15,21 @@ public class UI_Script : MonoBehaviour
     [SerializeField] private Slider _effectStrengthSlider;
     private float _effectStrengthSliderSpeed = 2f;
 
+    [Header("Angular Velocity Text")]
+    [SerializeField] private TextMeshPro angularVelocityText;
+
     void Start()
     {
         _strengthSliderSpeed *= _strengthSlider.maxValue;
 
         _effectStrengthSliderSpeed *= _effectStrengthSlider.maxValue;
     }
+
+
+    void Update()
+    {
+    }
+
     public void ResetStrengthSlider()
     {
         _strengthSlider.value = 0f;
@@ -50,6 +59,11 @@ public class UI_Script : MonoBehaviour
     public float GetEffectStrengthPer1()
     {
         return _effectStrengthSlider.value / _effectStrengthSlider.maxValue;
+    }
+
+    public void SetAngularVelocityText(float degreesPerSecond)
+    {
+        angularVelocityText.text = degreesPerSecond.ToString();
     }
 
 }
